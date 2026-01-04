@@ -76,6 +76,83 @@ cli.ts                      # CLI entry point
 - ✅ Real ABA/CSV files gitignored
 - ✅ All processing local to your machine
 
+## Deployment
+
+### Web App Hosting
+
+The web app is deployed on **GCP Cloud Storage** with **Cloud CDN** for global distribution.
+
+**Direct URL (Production)**:
+```
+https://storage.googleapis.com/aba-to-wise-1767511685/index.html
+```
+
+**Custom Domain via Cloudflare Worker** (Recommended):
+
+To serve from your custom domain (e.g., `aba-to-csv.example.com`), use a **Cloudflare Worker** as a proxy:
+
+1. **Create Cloudflare Worker**
+   - Go to Cloudflare Dashboard → Workers & Pages → Create Worker
+   - Name it `aba-to-wise-proxy`
+
+2. **Add This Code**:
+   ```javascript
+   export default {
+     async fetch(request) {
+       const url = new URL(request.url);
+       let path = url.pathname;
+       
+       // If root path, serve index.html
+       if (path === '/' || path === '') {
+         path = '/index.html';
+       }
+       
+       // Construct the GCS URL
+       const gcsUrl = `https://storage.googleapis.com/aba-to-wise-1767511685${path}`;
+       
+       try {
+         const response = await fetch(gcsUrl);
+         
+         if (response.status === 404) {
+           // SPA fallback: if not found, serve index.html
+           const indexResponse = await fetch('https://storage.googleapis.com/aba-to-wise-1767511685/index.html');
+           return new Response(indexResponse.body, {
+             status: indexResponse.status,
+             headers: {
+               ...Object.fromEntries(indexResponse.headers),
+               'Cache-Control': 'public, max-age=3600',
+             },
+           });
+         }
+         
+         return new Response(response.body, {
+           status: response.status,
+           headers: {
+             ...Object.fromEntries(response.headers),
+             'Cache-Control': 'public, max-age=3600',
+           },
+         });
+       } catch (error) {
+         return new Response(`Error: ${error.message}`, { status: 500 });
+       }
+     },
+   };
+   ```
+
+3. **Deploy Worker**
+   - Click Save and Deploy
+
+4. **Attach Custom Domain**
+   - Go to Worker Settings → Custom Domains
+   - Add your domain (e.g., `aba-to-csv.example.com`)
+   - Cloudflare automatically provisions SSL certificate
+
+5. **Verify**
+   ```bash
+   curl -I https://aba-to-csv.example.com
+   # Should return 200 OK
+   ```
+
 ## Resources
 
 - [Detailed API Documentation](README-WEB.md)
