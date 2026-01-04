@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://aba-to-wise.lewinnovation.com/sitemap.xml
+Sitemap: https://aba-to-csv.lwylabs.dev/sitemap.xml
